@@ -5,7 +5,7 @@ This document defines the full-stack architecture, frontend and backend director
 
 It is based on the team's supplied dashboard and mobile workflow references. The main desktop dashboard contains the Race Watch Hub, Live Updates, Next Orders & Predictions, Competition, Profile & Achievements, and Rewards & Badges. The mobile flow is Place Order → Start Race → Watch Live Race → Predict Winner → Win Rewards.
 
-> **Implementation note:** This is a complete target architecture for a hackathon MVP. Inspect the actual repository before replacing existing files or frameworks. Adapt names and scripts to the current codebase. Demo tracking must be labeled as simulated and must not be represented as actual rider GPS.
+
 
 ---
 
