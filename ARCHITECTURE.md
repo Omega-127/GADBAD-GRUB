@@ -1,568 +1,672 @@
-# Gadbad Grub --- System Architecture
+# Gadbad Grub — Complete System Architecture
+## Food Delivery Speed Racing
 
-### Food Delivery Speed Racing
+This document defines the full-stack architecture, frontend and backend directory structure, backend responsibilities, data models, API contracts, real-time events, and the end-to-end workflow for Gadbad Grub.
 
-This document describes the proposed architecture for Gadbad Grub, based
-on the team's dashboard and mobile workflow reference images, project
-requirements, and hackathon MVP scope.
+It is based on the team's supplied dashboard and mobile workflow references. The main desktop dashboard contains the Race Watch Hub, Live Updates, Next Orders & Predictions, Competition, Profile & Achievements, and Rewards & Badges. The mobile flow is Place Order → Start Race → Watch Live Race → Predict Winner → Win Rewards.
 
-> **Implementation rule:** Inspect the existing repository before
-> choosing frameworks, adding dependencies, or changing the stack. The
-> architecture below is technology-agnostic and should be mapped onto
-> the project's actual structure.
+> **Implementation note:** This is a complete target architecture for a hackathon MVP. Inspect the actual repository before replacing existing files or frameworks. Adapt names and scripts to the current codebase. Demo tracking must be labeled as simulated and must not be represented as actual rider GPS.
 
-------------------------------------------------------------------------
+---
 
-## 1. Architecture Goals
+## 1. Project Goals
 
--   Deliver a polished and responsive food-delivery racing experience.
--   Support the complete flow: Place Order → Start Race → Watch Live
-    Race → Predict Winner → Win Rewards.
--   Separate UI, order management, race simulation/tracking, prediction,
-    and rewards logic.
--   Support simulated demo data first, with clear seams for real APIs
-    later.
--   Avoid representing simulated rider positions as actual GPS data.
--   Keep prediction logic explainable and avoid claiming an ML model
-    where none exists.
+1. Build a full-stack food ordering and virtual delivery racing application.
+2. Provide a responsive UI matching the supplied reference images.
+3. Separate frontend, backend, database, simulator, and optional third-party integrations.
+4. Make the full order-to-reward workflow demonstrable in a hackathon.
+5. Keep ETA prediction explainable and reward calculations consistent.
+6. Make it possible to replace simulated data with provider APIs without rewriting the app.
 
-## 2. High-Level Architecture
+## 2. Technology Stack
 
-``` mermaid
+| Layer | Selected approach | Responsibility |
+|---|---|---|
+| Frontend | React + Vite | Single-page responsive app |
+| UI styling | Tailwind CSS + custom CSS | Color system, cards, animations, responsive design |
+| Routing | React Router | Home, Order, Race, Leaderboard, Rewards, Profile |
+| API client | Axios | REST requests |
+| Client state | React Context (or existing state library) | Cart, current user, app-level state |
+| Backend | Node.js + Express | REST API and business logic |
+| Real-time | Socket.IO | Race state and event broadcasting |
+| Database | MongoDB + Mongoose | Persistent application data |
+| Validation | Zod or express-validator | Request validation |
+| Authentication | JWT optional for MVP | User session and protected actions |
+| Testing | Vitest, Supertest | Unit and API tests |
+
+For a three-hour hackathon MVP, build this as a modular monolith: one Express server with separate routes/controllers/services, not many separately deployed microservices.
+
+## 3. Complete Directory Structure
+
+```text
+gadbad-grub/
+├── README.md
+├── ARCHITECTURE.md
+├── .gitignore
+├── package.json                    # optional root scripts (concurrently)
+├── .env.example
+│
+├── client/                         # FRONTEND: React + Vite
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html
+│   ├── .env.example
+│   ├── public/
+│   │   ├── logo/
+│   │   │   └── gadbad-grub-logo.png
+│   │   ├── riders/
+│   │   ├── food/
+│   │   ├── badges/
+│   │   └── sounds/
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── routes/
+│       │   └── AppRoutes.jsx
+│       ├── assets/
+│       │   ├── images/
+│       │   └── styles/
+│       │       ├── index.css
+│       │       └── theme.css
+│       ├── components/
+│       │   ├── layout/
+│       │   │   ├── AppLayout.jsx
+│       │   │   ├── Header.jsx
+│       │   │   ├── Sidebar.jsx
+│       │   │   ├── BottomNavigation.jsx
+│       │   │   └── Footer.jsx
+│       │   ├── dashboard/
+│       │   │   ├── RaceWatchHub.jsx
+│       │   │   ├── LiveUpdates.jsx
+│       │   │   ├── NextOrdersPredictions.jsx
+│       │   │   ├── CompetitionPanel.jsx
+│       │   │   ├── ProfileAchievements.jsx
+│       │   │   └── RewardsBadgesPanel.jsx
+│       │   ├── race/
+│       │   │   ├── RaceMap.jsx
+│       │   │   ├── RaceTrack.jsx
+│       │   │   ├── RiderMarker.jsx
+│       │   │   ├── RaceStatus.jsx
+│       │   │   ├── ETAWidget.jsx
+│       │   │   ├── RaceEventFeed.jsx
+│       │   │   ├── PredictionCard.jsx
+│       │   │   └── RaceCommentary.jsx
+│       │   ├── orders/
+│       │   │   ├── RestaurantCard.jsx
+│       │   │   ├── FoodItemCard.jsx
+│       │   │   ├── MenuGrid.jsx
+│       │   │   ├── CartDrawer.jsx
+│       │   │   ├── CartItem.jsx
+│       │   │   └── OrderStatusTimeline.jsx
+│       │   ├── leaderboard/
+│       │   │   ├── LeaderboardTable.jsx
+│       │   │   └── RacerRow.jsx
+│       │   ├── rewards/
+│       │   │   ├── RewardSummary.jsx
+│       │   │   ├── BadgeCard.jsx
+│       │   │   └── AchievementList.jsx
+│       │   └── common/
+│       │       ├── Button.jsx
+│       │       ├── Loader.jsx
+│       │       ├── ErrorMessage.jsx
+│       │       └── DemoModeBadge.jsx
+│       ├── pages/
+│       │   ├── HomePage.jsx
+│       │   ├── OrderPage.jsx
+│       │   ├── RacePage.jsx
+│       │   ├── LeaderboardPage.jsx
+│       │   ├── RewardsPage.jsx
+│       │   ├── ProfilePage.jsx
+│       │   └── NotFoundPage.jsx
+│       ├── context/
+│       │   ├── CartContext.jsx
+│       │   └── AuthContext.jsx
+│       ├── hooks/
+│       │   ├── useRaceSocket.js
+│       │   ├── useRace.js
+│       │   └── useAuth.js
+│       ├── services/
+│       │   ├── apiClient.js
+│       │   ├── orderApi.js
+│       │   ├── raceApi.js
+│       │   ├── predictionApi.js
+│       │   ├── leaderboardApi.js
+│       │   └── rewardsApi.js
+│       ├── utils/
+│       │   ├── formatTime.js
+│       │   ├── formatCurrency.js
+│       │   └── constants.js
+│       └── tests/
+│
+├── server/                         # BACKEND: Node + Express
+│   ├── package.json
+│   ├── server.js                   # HTTP + Socket.IO startup
+│   ├── app.js                      # Express setup and middleware
+│   ├── .env.example
+│   ├── config/
+│   │   ├── env.js
+│   │   └── database.js
+│   ├── routes/
+│   │   ├── index.js
+│   │   ├── restaurant.routes.js
+│   │   ├── order.routes.js
+│   │   ├── race.routes.js
+│   │   ├── prediction.routes.js
+│   │   ├── leaderboard.routes.js
+│   │   ├── reward.routes.js
+│   │   └── user.routes.js
+│   ├── controllers/
+│   │   ├── restaurant.controller.js
+│   │   ├── order.controller.js
+│   │   ├── race.controller.js
+│   │   ├── prediction.controller.js
+│   │   ├── leaderboard.controller.js
+│   │   ├── reward.controller.js
+│   │   └── user.controller.js
+│   ├── services/
+│   │   ├── restaurant.service.js
+│   │   ├── order.service.js
+│   │   ├── race.service.js
+│   │   ├── prediction.service.js
+│   │   ├── leaderboard.service.js
+│   │   ├── reward.service.js
+│   │   └── commentary.service.js
+│   ├── models/
+│   │   ├── User.js
+│   │   ├── Restaurant.js
+│   │   ├── MenuItem.js
+│   │   ├── Order.js
+│   │   ├── Race.js
+│   │   ├── RaceEvent.js
+│   │   ├── Prediction.js
+│   │   └── Reward.js
+│   ├── middleware/
+│   │   ├── error.middleware.js
+│   │   ├── notFound.middleware.js
+│   │   ├── validate.middleware.js
+│   │   └── auth.middleware.js
+│   ├── validators/
+│   │   ├── order.validator.js
+│   │   └── prediction.validator.js
+│   ├── sockets/
+│   │   ├── socket.js
+│   │   └── race.socket.js
+│   ├── simulator/
+│   │   ├── raceSimulator.js
+│   │   ├── demoRacers.js
+│   │   └── demoScenarios.js
+│   ├── adapters/
+│   │   ├── maps.adapter.js
+│   │   ├── delivery.adapter.js
+│   │   └── llm.adapter.js
+│   ├── utils/
+│   │   ├── ApiError.js
+│   │   ├── asyncHandler.js
+│   │   ├── generateId.js
+│   │   └── ranking.js
+│   ├── seed/
+│   │   ├── seed.js
+│   │   ├── restaurants.seed.js
+│   │   └── users.seed.js
+│   └── tests/
+│       ├── order.test.js
+│       ├── race.test.js
+│       └── prediction.test.js
+│
+└── docs/
+    ├── API.md
+    └── DEMO_FLOW.md
+```
+
+This is the full target tree. The MVP can combine small files when necessary, but keep client and server code separated.
+
+## 4. System Architecture
+
+```mermaid
 flowchart TD
-    U[Customer / Demo User] --> UI[Responsive Web UI]
+    USER[Customer / Demo User] --> CLIENT[React + Vite Frontend]
 
-    UI --> NAV[Navigation and Page Components]
-    UI --> STATE[Client State and Data Layer]
+    CLIENT -->|REST / JSON| EXPRESS[Express API]
+    CLIENT <-->|Socket.IO| SOCKET[Socket.IO Server]
 
-    STATE --> API[Backend API / Demo Service Layer]
+    EXPRESS --> ROUTES[Routes]
+    ROUTES --> CTRL[Controllers]
+    CTRL --> SERVICES[Business Services]
 
-    API --> ORDERS[Order Service]
-    API --> RACE[Race and Tracking Service]
-    API --> PRED[ETA and Winner Prediction]
-    API --> REWARD[Rewards and Leaderboard Service]
-    API --> COMMENT[Race Commentary Service]
+    SERVICES --> ORDER[Order Service]
+    SERVICES --> RACE[Race Service]
+    SERVICES --> PRED[Prediction Service]
+    SERVICES --> REWARD[Reward + Leaderboard Service]
+    SERVICES --> COMMENT[Commentary Service]
 
-    ORDERS --> DB[(Database or Demo Persistence)]
+    ORDER --> DB[(MongoDB / Mongoose)]
     RACE --> DB
     PRED --> DB
     REWARD --> DB
 
     SIM[Demo Race Simulator] --> RACE
-    EXT[Optional External APIs: Restaurant / Maps / Delivery] --> ADAPTER[Provider Adapters]
-    ADAPTER --> ORDERS
-    ADAPTER --> RACE
+    RACE --> SOCKET
 
-    RACE --> EVENTS[Race Event Stream / Polling]
-    EVENTS --> STATE
-    STATE --> UI
+    PROVIDERS[Optional Maps / Delivery / LLM APIs] --> ADAPTERS[Provider Adapters]
+    ADAPTERS --> RACE
+    ADAPTERS --> ORDER
+    ADAPTERS --> COMMENT
 ```
 
-### Architecture Explanation
+### Request lifecycle
 
-1.  The customer interacts with the responsive web UI.
-2.  Page components use the project's existing client state and
-    data-fetching approach.
-3.  Requests go through the existing backend/API layer or a clearly
-    separated demo service layer.
-4.  Order, race, prediction, and reward modules handle their own
-    responsibilities.
-5.  A race simulator generates demo progress and events when real
-    tracking is unavailable.
-6.  The UI receives refreshed state through the available real-time
-    mechanism or polling.
-7.  Optional external providers are isolated behind adapters so the rest
-    of the app does not depend directly on a specific provider.
+1. React page calls an API function in `client/src/services`.
+2. Axios sends the request to Express.
+3. Express route applies validation/auth middleware and invokes a controller.
+4. Controller calls a service.
+5. Service applies business rules and accesses MongoDB through Mongoose models.
+6. Controller returns a consistent JSON response.
+7. For race changes, the race service emits Socket.IO events to the relevant race room.
+8. The frontend hook receives the event and updates the map, ETA, feed, and leaderboard.
 
-## 3. Frontend Architecture
-
-The frontend should use reusable components and shared data models.
-Names below are suggested logical modules; adapt them to the
-repository's actual conventions.
-
-``` text
-src/
-├── app/ or pages/
-│   ├── Home
-│   ├── Order
-│   ├── RaceWatch
-│   ├── Leaderboard
-│   ├── Rewards
-│   └── Profile
-│
-├── components/
-│   ├── layout/
-│   │   ├── Header
-│   │   ├── Sidebar
-│   │   ├── BottomNavigation
-│   │   └── Footer
-│   ├── race/
-│   │   ├── RaceMap
-│   │   ├── RiderMarker
-│   │   ├── RaceTrack
-│   │   ├── RaceStatus
-│   │   ├── ETAWidget
-│   │   └── RaceEventFeed
-│   ├── orders/
-│   │   ├── RestaurantCard
-│   │   ├── FoodItemCard
-│   │   ├── Cart
-│   │   └── OrderStatus
-│   ├── competition/
-│   │   ├── Leaderboard
-│   │   ├── PredictionCard
-│   │   └── RaceCommentary
-│   └── rewards/
-│       ├── RewardSummary
-│       ├── BadgeCard
-│       └── AchievementPanel
-│
-├── services/
-│   ├── orderService
-│   ├── raceService
-│   ├── predictionService
-│   └── rewardService
-│
-├── state/ or store/
-├── types/ or models/
-├── utils/
-└── assets/
-    ├── logo
-    ├── rider illustrations
-    ├── food icons
-    └── sound and animation assets
-```
-
-This is a conceptual layout, not a requirement to create duplicate
-folders if equivalent modules already exist.
-
-### Main UI Responsibilities
-
-  -----------------------------------------------------------------------
-  Component                           Responsibility
-  ----------------------------------- -----------------------------------
-  Home Dashboard                      Compose Race Watch Hub, live
-                                      updates, order predictions,
-                                      competition, profile, and rewards
-                                      panels.
-
-  Order Page                          Browse menu items, manage cart, and
-                                      submit an order.
-
-  Race Watch Hub                      Render track, rider markers, finish
-                                      line, progress, ETA, and event
-                                      feed.
-
-  Leaderboard                         Display race rankings using a
-                                      consistent ETA/progress rule.
-
-  Rewards                             Display points, badges,
-                                      achievements, and eligible claims.
-
-  Profile                             Display user details, race history,
-                                      and achievements.
-  -----------------------------------------------------------------------
-
-## 4. Backend / Service Architecture
-
-Use the project's current backend if present. The following modules
-define responsibilities and can be implemented as separate services,
-modules, or functions within a single backend for the MVP.
+## 5. Backend Responsibilities
 
 ### Order Service
+- Fetch restaurants and menus.
+- Validate cart item IDs and quantities.
+- Calculate order total from trusted database menu prices.
+- Create an order and unique order ID.
+- Maintain order status and timestamps.
+- Trigger race creation after order acceptance or pickup, according to the selected demo flow.
 
-Responsibilities: - Retrieve available demo restaurants and menu
-items. - Validate cart items and calculate order totals. - Create an
-order with a unique ID. - Maintain order status and timestamps. -
-Provide order details to the race module.
+### Race Service
+- Create a race linked to an order.
+- Store racer identity, progress, ETA, status, and tracking source.
+- Apply simulator/provider updates.
+- Save race events and broadcast state changes.
+- Mark races finished and initiate prediction settlement.
 
-### Race and Tracking Service
-
-Responsibilities: - Create a race associated with an order. - Maintain
-rider/racer identity, route progress, status, and ETA. - Update race
-progress from an external tracking provider or demo simulator. - Publish
-or expose race events to the frontend. - Identify demo/simulated
-tracking data clearly.
-
-### Demo Race Simulator
-
-Responsibilities: - Generate predictable, configurable virtual racer
-movement. - Simulate checkpoints, preparation completion, pickup, ETA
-changes, and finish events. - Update virtual progress without
-controlling or encouraging real-world rider behavior. - Support
-repeatable demo scenarios for judging.
-
-The simulator should be isolated from production tracking so it can be
-disabled when a real provider is configured.
+### Race Simulator
+- Run deterministic demo scenarios with configurable tick interval.
+- Simulate rider progress, checkpoints, pickup, traffic events, ETA changes, and finish.
+- Emit updates through the race service.
+- Stop timers when a race finishes or server shuts down.
+- Never control real rider movement.
 
 ### Prediction Service
+- Return a predicted winner using ETA-based ranking.
+- Accept user predictions only before the race finishes.
+- Store prediction and submission time.
+- Validate prediction result after finish.
+- Use explainable rule-based logic for the MVP.
+- Do not claim calibrated confidence or a trained ML model unless it exists and has been evaluated.
 
-Responsibilities: - Calculate ETA estimates from available progress and
-timing data. - Rank racers using a documented ordering rule. - Return a
-predicted winner and, only if calibrated, a confidence estimate. -
-Provide a reason or explanation for a prediction. - Record the
-prediction and the race state at the time it was made.
+### Leaderboard Service
+- Sort active racers by lowest valid ETA.
+- Apply a deterministic tie-breaker.
+- Return racer name, ETA, progress, and rank.
+- Optionally return user rankings and completed race scores.
 
-For the MVP, a deterministic, rule-based algorithm is sufficient. Do not
-describe it as a trained AI/ML model unless training and model inference
-are implemented.
+### Reward Service
+- Award XP, points, and badges for valid actions.
+- Settle correct predictions after a race completes.
+- Prevent duplicate awards using unique source-event/idempotency keys.
+- Return profile reward summary and history.
 
-### Rewards and Leaderboard Service
+### Commentary Service
+- Convert race events into short, playful messages.
+- Use an optional LLM provider through `llm.adapter.js`.
+- Provide fallback templates when no key/provider is configured.
+- Keep provider secrets on the backend.
 
-Responsibilities: - Accept eligible user predictions and validate that
-they were submitted before race completion. - Calculate points for
-correct predictions. - Track XP, badges, achievements, and race
-history. - Prevent duplicate reward claims for the same event. - Return
-leaderboard and profile summaries.
-
-Reward validation should happen server-side when a backend is available.
-For a frontend-only demo, clearly treat local rewards as prototype data
-rather than secure production rewards.
-
-### Race Commentary Service
-
-Responsibilities: - Convert race events into short, playful
-commentary. - Use an LLM provider through an adapter when configured. -
-Provide deterministic fallback messages if the provider is
-unavailable. - Avoid exposing API keys to the browser.
-
-## 5. Core Data Model
-
-The following are conceptual entities and suggested fields. Adapt names
-and types to the actual database.
+## 6. Database Design
 
 ### User
+```text
+User {
+  _id,
+  displayName,
+  email?,
+  passwordHash?,
+  avatar,
+  points,
+  xp,
+  badges: [],
+  createdAt,
+  updatedAt
+}
+```
 
-  Field          Description
-  -------------- ----------------------------
-  user_id        Unique user identifier
-  display_name   Name shown in the app
-  avatar         Avatar or mascot selection
-  points         Current virtual points
-  xp             Experience points
-  badges         Earned badge references
+### Restaurant
+```text
+Restaurant {
+  _id,
+  name,
+  description,
+  rating,
+  imageUrl,
+  isAvailable,
+  createdAt
+}
+```
 
-### Restaurant and MenuItem
-
-  -----------------------------------------------------------------------
-  Entity                              Suggested fields
-  ----------------------------------- -----------------------------------
-  Restaurant                          restaurant_id, name, description,
-                                      rating, image, availability
-
-  MenuItem                            item_id, restaurant_id, name,
-                                      description, price, image,
-                                      availability
-  -----------------------------------------------------------------------
+### MenuItem
+```text
+MenuItem {
+  _id,
+  restaurantId,
+  name,
+  description,
+  price,
+  imageUrl,
+  isAvailable
+}
+```
 
 ### Order
-
-  -----------------------------------------------------------------------
-  Field                               Description
-  ----------------------------------- -----------------------------------
-  order_id                            Unique order identifier
-
-  user_id                             Customer who placed the order
-
-  restaurant_id                       Selected restaurant
-
-  items                               Ordered item IDs and quantities
-
-  total                               Calculated order total
-
-  status                              placed, preparing, picked_up,
-                                      out_for_delivery, delivered,
-                                      cancelled
-
-  created_at                          Order creation time
-
-  estimated_delivery_at               Current estimated arrival time
-  -----------------------------------------------------------------------
+```text
+Order {
+  _id,
+  userId,
+  restaurantId,
+  items: [{ menuItemId, name, quantity, unitPrice }],
+  total,
+  status: placed | preparing | picked_up | out_for_delivery | delivered | cancelled,
+  estimatedDeliveryAt,
+  createdAt,
+  updatedAt
+}
+```
 
 ### Race
-
-  Field             Description
-  ----------------- ------------------------------------------
-  race_id           Unique race identifier
-  order_id          Related order
-  racer_id          Virtual racer or rider identifier
-  progress          Normalized demo progress, such as 0--100
-  eta_seconds       Current estimated time remaining
-  status            waiting, racing, finished, cancelled
-  tracking_source   simulated, provider, or manual/demo
-  updated_at        Last update time
+```text
+Race {
+  _id,
+  orderId,
+  racerId,
+  racerName,
+  progress,            // 0 to 100 for virtual demo
+  etaSeconds,
+  status: waiting | racing | finished | cancelled,
+  trackingSource: simulated | provider,
+  routePoints: [],
+  updatedAt,
+  finishedAt?
+}
+```
 
 ### RaceEvent
-
-  -----------------------------------------------------------------------
-  Field                               Description
-  ----------------------------------- -----------------------------------
-  event_id                            Unique event identifier
-
-  race_id                             Related race
-
-  event_type                          pickup, checkpoint, eta_changed,
-                                      boost_visual, delivered, etc.
-
-  message                             User-facing event description
-
-  created_at                          Event time
-
-  source                              simulator or configured provider
-  -----------------------------------------------------------------------
+```text
+RaceEvent {
+  _id,
+  raceId,
+  type,
+  message,
+  metadata: {},
+  source: simulator | provider,
+  createdAt
+}
+```
 
 ### Prediction
-
-  Field                Description
-  -------------------- --------------------------------------
-  prediction_id        Unique prediction identifier
-  user_id              User who predicted
-  race_id              Race being predicted
-  predicted_racer_id   Selected winner
-  submitted_at         Submission time
-  result               pending, correct, incorrect, or void
-  points_awarded       Points awarded after validation
-
-### Reward / Badge
-
-  Field             Description
-  ----------------- ------------------------------------
-  reward_id         Unique reward identifier
-  user_id           Recipient
-  reward_type       points, XP, badge, achievement
-  source_event_id   Event or prediction that earned it
-  created_at        Reward time
-
-## 6. Core Data Flow
-
-### A. Place an Order
-
-``` mermaid
-sequenceDiagram
-    actor Customer
-    participant UI as Order UI
-    participant Order as Order Service
-    participant Store as Persistence
-
-    Customer->>UI: Select food and checkout
-    UI->>Order: Submit cart
-    Order->>Order: Validate items and total
-    Order->>Store: Save order
-    Store-->>Order: Order ID
-    Order-->>UI: Order confirmation
-    UI->>UI: Open order/race view
+```text
+Prediction {
+  _id,
+  userId,
+  raceId,
+  predictedRacerId,
+  submittedAt,
+  result: pending | correct | incorrect | void,
+  pointsAwarded
+}
 ```
 
-### B. Start and Update a Race
-
-``` mermaid
-sequenceDiagram
-    participant Order as Order Service
-    participant Race as Race Service
-    participant Sim as Demo Simulator
-    participant UI as Race Dashboard
-
-    Order->>Race: Create race for order
-    Race->>Sim: Start demo scenario
-    Sim->>Race: Progress / checkpoint / ETA event
-    Race->>Race: Update race state
-    Race-->>UI: Updated state via polling or event stream
-    UI->>UI: Animate rider and refresh ETA/feed
+### Reward
+```text
+Reward {
+  _id,
+  userId,
+  type,
+  points,
+  badgeCode?,
+  sourceEventId,
+  createdAt
+}
 ```
 
-If a real tracking provider is configured, its adapter supplies tracking
-updates instead of the demo simulator. The app must identify the source
-of the data.
+Recommended indexes:
+- `Order`: userId, status, createdAt
+- `Race`: orderId, status, updatedAt
+- `RaceEvent`: raceId + createdAt
+- `Prediction`: unique compound index `{ userId: 1, raceId: 1 }` if one prediction per user per race
+- `Reward`: unique source-event/idempotency key to prevent duplicate awards
 
-### C. Predict and Award Rewards
+## 7. REST API Design
 
-``` mermaid
+Base URL: `http://localhost:5000/api`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET | `/restaurants` | List restaurants |
+| GET | `/restaurants/:id/menu` | List menu items |
+| POST | `/orders` | Place an order |
+| GET | `/orders/:id` | Get order details |
+| GET | `/orders/user/:userId` | List user's orders |
+| PATCH | `/orders/:id/status` | Update demo/admin order status |
+| POST | `/races` | Create/start race for an order |
+| GET | `/races` | Get active races |
+| GET | `/races/:id` | Get race state |
+| GET | `/races/:id/events` | Get race events |
+| POST | `/races/:id/predictions` | Submit winner prediction |
+| GET | `/leaderboard` | Get race leaderboard |
+| GET | `/users/:id/profile` | Get user profile |
+| GET | `/users/:id/rewards` | Get reward history |
+
+### Create order request example
+```json
+{
+  "userId": "demo-user-id",
+  "restaurantId": "restaurant-id",
+  "items": [
+    { "menuItemId": "menu-item-id", "quantity": 1 }
+  ]
+}
+```
+
+### Success response
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Order created"
+}
+```
+
+### Error response
+```json
+{
+  "success": false,
+  "message": "Human-readable error",
+  "code": "VALIDATION_ERROR"
+}
+```
+
+These are API contracts; use real database IDs and actual validation in the implementation.
+
+## 8. Socket.IO Event Design
+
+| Event | Direction | Purpose |
+|---|---|---|
+| `race:join` | Client → Server | Join room for race ID |
+| `race:state` | Server → Client | Current progress, ETA, status, and tracking source |
+| `race:event` | Server → Client | Pickup, checkpoint, traffic, boost visual, or finish update |
+| `race:leaderboard` | Server → Client | Updated racer ranking |
+| `race:finished` | Server → Client | Final result and prediction settlement status |
+
+Example `race:state`:
+```json
+{
+  "raceId": "demo-race-id",
+  "progress": 65,
+  "etaSeconds": 420,
+  "status": "racing",
+  "trackingSource": "simulated",
+  "updatedAt": "2026-01-01T12:00:00.000Z"
+}
+```
+
+The frontend should show a visible “Demo / Simulated Tracking” indicator whenever `trackingSource` is simulated.
+
+## 9. Race Ranking and ETA Algorithm
+
+### Ranking
+Sort active racers by ascending valid `etaSeconds`. If tied, sort by descending progress, then stable racer ID. Do not rank based on actual driving speed.
+
+### Simple simulated ETA
+```text
+remainingProgress = 100 - progress
+etaSeconds = remainingProgress / virtualProgressRate
+```
+
+The real implementation should handle invalid values, preparation time, race completion, and provider ETA where available.
+
+### Prediction confidence
+Do not show a random confidence percentage. If a confidence score is included, document the formula and label it as a demo estimate unless calibrated against real historical data.
+
+## 10. Complete End-to-End Workflow
+
+```mermaid
 sequenceDiagram
     actor Customer
-    participant UI as Prediction UI
-    participant Pred as Prediction Service
+    participant UI as React UI
+    participant API as Express API
+    participant Order as Order Service
     participant Race as Race Service
+    participant Sim as Race Simulator
+    participant DB as MongoDB
+    participant Socket as Socket.IO
     participant Reward as Reward Service
-    participant Store as Persistence
 
-    Customer->>UI: Select predicted winner
-    UI->>Pred: Submit prediction
-    Pred->>Race: Verify race state and deadline
-    Pred->>Store: Save prediction
-    Pred-->>UI: Prediction confirmation
-    Race->>Reward: Race completed event
-    Reward->>Store: Validate result and record eligible reward
-    Reward-->>UI: Updated points and badges
+    Customer->>UI: Browse, add food, checkout
+    UI->>API: POST /api/orders
+    API->>Order: Validate and create order
+    Order->>DB: Save order
+    Order-->>UI: Order confirmation + ID
+
+    UI->>API: POST /api/races
+    API->>Race: Create race
+    Race->>DB: Save race
+    Race->>Sim: Start demo scenario
+
+    loop While race active
+        Sim->>Race: Update progress / ETA / event
+        Race->>DB: Save state and event
+        Race->>Socket: Emit race:state and race:event
+        Socket-->>UI: Push updates
+        UI->>UI: Animate track, refresh ETA and feed
+    end
+
+    Customer->>UI: Submit winner prediction
+    UI->>API: POST /api/races/:id/predictions
+    API->>DB: Validate deadline and save prediction
+
+    Sim->>Race: Finish event
+    Race->>Reward: Settle valid predictions
+    Reward->>DB: Save points / badge once
+    Race->>Socket: Emit race:finished
+    Socket-->>UI: Show finish celebration and rewards
 ```
 
-## 7. Suggested API Contracts
+## 11. Environment Configuration
 
-These are illustrative endpoint contracts. Implement them using the
-backend conventions already present in the repository.
+Root/server `.env.example`:
+```env
+PORT=5000
+NODE_ENV=development
+CLIENT_ORIGIN=http://localhost:5173
+MONGODB_URI=mongodb://127.0.0.1:27017/gadbad_grub
+JWT_SECRET=replace_with_a_long_random_secret
 
-  Method   Endpoint                       Purpose
-  -------- ------------------------------ -----------------------------------
-  GET      `/api/restaurants`             List available restaurants
-  GET      `/api/restaurants/:id/menu`    Get restaurant menu
-  POST     `/api/orders`                  Create an order
-  GET      `/api/orders/:id`              Retrieve order details
-  GET      `/api/races/:id`               Retrieve race state
-  GET      `/api/races/:id/events`        Retrieve recent race events
-  GET      `/api/races`                   Retrieve active demo races
-  POST     `/api/races/:id/predictions`   Submit a winner prediction
-  GET      `/api/leaderboard`             Retrieve leaderboard
-  GET      `/api/users/:id/rewards`       Retrieve user rewards
-  GET      `/api/users/:id/profile`       Retrieve profile and achievements
+DEMO_MODE=true
+RACE_TICK_MS=2000
 
-For real-time delivery, the existing project may use WebSockets or
-server-sent events. A polling endpoint is acceptable for the hackathon
-MVP if it is reliable and clearly documented.
-
-## 8. Race Ranking and Prediction Logic
-
-### ETA-Based Ranking
-
-For active races, sort racers by the smallest valid ETA remaining. Use a
-consistent tie-breaking rule, such as greater route progress, followed
-by a stable racer ID.
-
-Do not rank riders by actual driving speed or reward unsafe behavior.
-
-### ETA Estimate
-
-A basic demo estimate can use remaining simulated route progress and a
-configured average virtual pace:
-
-``` text
-remaining_progress = 100 - progress
-estimated_seconds = remaining_progress / virtual_progress_rate
+MAPS_API_KEY=
+LLM_API_KEY=
+LLM_MODEL=
 ```
 
-The actual implementation should handle completed races, invalid values,
-preparation time, and any available provider ETA.
+Client `.env.example`:
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+VITE_DEMO_MODE=true
+```
 
-### Confidence
+Only `VITE_` variables are exposed to the browser. Never put MongoDB credentials, JWT secrets, or LLM keys in client environment variables.
 
-Do not display an arbitrary percentage as a calibrated probability. If a
-confidence value is shown, document how it is calculated and label it as
-a demo estimate unless it has been validated against historical
-outcomes.
+## 12. Running Locally
 
-## 9. Real-Time and Demo Data Strategy
+Prerequisites: Node.js LTS, npm, and MongoDB (local or hosted).
 
-### Demo Mode
+Backend:
+```bash
+cd server
+npm install
+npm run dev
+```
 
--   Use seeded restaurants, food items, users, and racers.
--   Simulate rider movement and race events at a controlled interval.
--   Allow judges to observe a complete race within the demo time.
--   Display a visible "Demo / Simulated Tracking" label.
--   Keep simulation state separate from actual order and provider
-    integrations.
+Frontend in a second terminal:
+```bash
+cd client
+npm install
+npm run dev
+```
 
-### Provider Mode
+Seed demo data using the script defined in `server/package.json`, for example:
+```bash
+cd server
+npm run seed
+```
 
--   Use configured provider APIs only when credentials and permissions
-    are available.
--   Keep provider-specific request/response handling inside adapters.
--   Validate and normalize incoming status, ETA, and location data.
--   Handle rate limits, missing updates, stale positions, and provider
-    errors.
--   Never expose secrets or API keys in client-side code.
+The `dev` and `seed` scripts must be defined in the actual package files. Verify commands against the repository before documenting them as final.
 
-## 10. Security, Reliability, and Safety
+## 13. Testing Plan and Evaluation
 
--   Store secrets in environment variables or a secure backend
-    configuration.
--   Validate order quantities, prices, prediction deadlines, and user
-    input.
--   Calculate prices and rewards on the server when a backend is
-    available.
--   Avoid duplicate order submissions and duplicate reward awards.
--   Handle API failures, missing data, and stale tracking updates
-    gracefully.
--   Clearly distinguish simulated locations from real tracking.
--   Do not encourage speeding, dangerous shortcuts, or unsafe rider
-    behavior.
--   Provide accessible text/status alternatives to animated maps and
-    color-coded states.
+| Area | Test |
+|---|---|
+| Order flow | Add items, submit order, verify total and order confirmation |
+| Race simulator | Progress, checkpoints, ETA, and finish state update |
+| Real-time updates | Measure backend-event to UI update latency |
+| Ranking | Check output against ETA sorting rule |
+| Prediction | Reject predictions after race completion |
+| Rewards | Verify reward settlement occurs once |
+| Responsive UI | Test desktop, tablet, and mobile |
+| Error handling | Test unavailable DB/API, invalid input, and missing ETA |
 
-## 11. Evaluation and Testing Plan
+Proposed hackathon demo targets (not measured claims):
+- Aim for race updates within 2 seconds in the local demo.
+- Ensure leaderboard matches the defined ETA ranking rule.
+- Ensure no duplicate reward settlement in tested scenarios.
+- Ensure all core navigation and flow actions work.
+- Ensure mobile pages have no horizontal overflow.
 
-  -----------------------------------------------------------------------
-  Area                                Test
-  ----------------------------------- -----------------------------------
-  Order flow                          Add items, update cart, place
-                                      order, and verify confirmation.
+## 14. Security, Reliability, and Safety
 
-  Race simulation                     Verify rider progress, checkpoints,
-                                      ETA, and finish status update.
+- Validate all request payloads and IDs.
+- Recalculate order prices from trusted menu data on the backend.
+- Keep secrets server-side.
+- Protect admin status-change endpoints before public deployment.
+- Enforce prediction deadlines and reward idempotency in the backend.
+- Add authentication and rate limiting for a public deployment.
+- Clearly label simulated tracking.
+- Do not encourage speeding, unsafe shortcuts, or risky delivery behavior.
+- Provide accessible text alternatives to animated and color-coded map states.
 
-  UI updates                          Measure event-to-screen latency in
-                                      the demo environment.
+## 15. Future Enhancements
 
-  Ranking                             Verify racers are sorted according
-                                      to the documented ETA rule.
+- Restaurant and menu provider integrations.
+- Authorized delivery tracking provider integration.
+- ETA improvements using historical data.
+- Friend challenges and multiplayer races.
+- LLM-based commentary with moderation and fallback.
+- Localization, accessibility improvements, and restaurant analytics.
 
-  Prediction                          Confirm predictions are locked or
-                                      rejected after the deadline.
+---
 
-  Rewards                             Confirm eligible rewards are
-                                      awarded once and only once.
-
-  Responsive UI                       Test desktop, tablet, and mobile
-                                      layouts.
-
-  Failure handling                    Simulate API failure, missing ETA,
-                                      and unavailable commentary
-                                      provider.
-  -----------------------------------------------------------------------
-
-### Proposed Demo Targets
-
--   Race updates visible within 2 seconds in the demo environment.
--   Rankings consistent with the current ETA-based ranking rule.
--   No duplicate reward awards in tested completion scenarios.
--   All primary navigation and MVP actions functional.
--   No horizontal overflow on supported mobile and desktop viewport
-    sizes.
-
-These are targets to test, not verified performance claims.
-
-## 12. Deployment and Configuration
-
-Deployment depends on the existing framework and hosting environment.
-
-Before deployment:
-
-1.  Confirm the actual framework, build command, and start command.
-2.  Configure required environment variables on the hosting platform.
-3.  Ensure API secrets remain server-side.
-4.  Configure the database or seed demo data.
-5.  Verify demo mode works without optional third-party credentials.
-6.  Test order placement, race updates, predictions, and rewards in the
-    deployed environment.
-
-Document the verified setup commands and environment variables in the
-project README and an example environment file. Do not commit real
-credentials.
-
-------------------------------------------------------------------------
-
-## Final Architecture Summary
-
-Gadbad Grub is organized around six core capabilities:
-
-1.  Food ordering and order status.
-2.  Race tracking and simulation.
-3.  ETA and winner prediction.
-4.  Live event updates and race commentary.
-5.  Leaderboard and rewards.
-6.  Responsive desktop and mobile interfaces.
-
-The hackathon MVP should prioritize a working order flow, a visually
-impressive Race Watch Hub, reliable simulated updates, understandable
-predictions, and a complete rewards loop. Real delivery-provider
-integrations can be added through adapters without redesigning the
-entire application.
-
-**Gadbad Grub --- Don't Just Track Your Food. Race It!**
+**Gadbad Grub — Don't Just Track Your Food. Race It!**
