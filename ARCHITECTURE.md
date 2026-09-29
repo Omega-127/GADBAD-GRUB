@@ -46,7 +46,71 @@ gadbad-grub/
 ├── package.json                    # optional root scripts (concurrently)
 ├── .env.example
 │
-├── client/                         # FRONTEND: React + Vite
+├
+│   │   ├── ApiError.js
+│   │   ├── asyncHandler.js
+│   │   ├── generateId.js
+│   │   └── ranking.js
+│   ├── seed/
+│   │   ├── seed.js
+│   │   ├── restaurants.seed.js
+│   │   └── users.seed.js
+│   └── tests/
+│       ├── order.test.js
+│       ├── race.test.js
+│       └── prediction.test.js
+│
+└── docs/
+    ├── API.md
+    └── DEMO_FLOW.md
+```
+
+This is the full target tree. The MVP can combine small files when necessary, but keep client and server code separated.
+
+## 4. System Architecture
+
+```mermaid
+flowchart TD
+    USER[Customer / Demo User] --> CLIENT[React + Vite Frontend]
+
+    CLIENT -->|REST / JSON| EXPRESS[Express API]
+    CLIENT <-->|Socket.IO| SOCKET[Socket.IO Server]
+
+    EXPRESS --> ROUTES[Routes]
+    ROUTES --> CTRL[Controllers]
+    CTRL --> SERVICES[Business Services]
+
+    SERVICES --> ORDER[Order Service]
+    SERVICES --> RACE[Race Service]
+    SERVICES --> PRED[Prediction Service]
+    SERVICES --> REWARD[Reward + Leaderboard Service]
+    SERVICES --> COMMENT[Commentary Service]
+
+    ORDER --> DB[(MongoDB / Mongoose)]
+    RACE --> DB
+    PRED --> DB
+    REWARD --> DB
+
+    SIM[Demo Race Simulator] --> RACE
+    RACE --> SOCKET
+
+    PROVIDERS[Optional Maps / Delivery / LLM APIs] --> ADAPTERS[Provider Adapters]
+    ADAPTERS --> RACE
+    ADAPTERS --> ORDER
+    ADAPTERS --> COMMENT
+```
+
+### Request lifecycle
+
+1. React page calls an API function in `client/src/services`.
+2. Axios sends the request to Express.
+3. Express route applies validation/auth middleware and invokes a controller.
+4. Controller calls a service.
+5. Service applies business rules and accesses MongoDB through Mongoose models.
+6. Controller returns a consistent JSON response.
+7. For race changes, the race service emits Socket.IO events to the relevant race room.
+8. The frontend hook receives the event and updates the map, ETA, feed, and leaderboard.
+── client/                         # FRONTEND: React + Vite
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── index.html
@@ -200,70 +264,6 @@ gadbad-grub/
 │   │   ├── delivery.adapter.js
 │   │   └── llm.adapter.js
 │   ├── utils/
-│   │   ├── ApiError.js
-│   │   ├── asyncHandler.js
-│   │   ├── generateId.js
-│   │   └── ranking.js
-│   ├── seed/
-│   │   ├── seed.js
-│   │   ├── restaurants.seed.js
-│   │   └── users.seed.js
-│   └── tests/
-│       ├── order.test.js
-│       ├── race.test.js
-│       └── prediction.test.js
-│
-└── docs/
-    ├── API.md
-    └── DEMO_FLOW.md
-```
-
-This is the full target tree. The MVP can combine small files when necessary, but keep client and server code separated.
-
-## 4. System Architecture
-
-```mermaid
-flowchart TD
-    USER[Customer / Demo User] --> CLIENT[React + Vite Frontend]
-
-    CLIENT -->|REST / JSON| EXPRESS[Express API]
-    CLIENT <-->|Socket.IO| SOCKET[Socket.IO Server]
-
-    EXPRESS --> ROUTES[Routes]
-    ROUTES --> CTRL[Controllers]
-    CTRL --> SERVICES[Business Services]
-
-    SERVICES --> ORDER[Order Service]
-    SERVICES --> RACE[Race Service]
-    SERVICES --> PRED[Prediction Service]
-    SERVICES --> REWARD[Reward + Leaderboard Service]
-    SERVICES --> COMMENT[Commentary Service]
-
-    ORDER --> DB[(MongoDB / Mongoose)]
-    RACE --> DB
-    PRED --> DB
-    REWARD --> DB
-
-    SIM[Demo Race Simulator] --> RACE
-    RACE --> SOCKET
-
-    PROVIDERS[Optional Maps / Delivery / LLM APIs] --> ADAPTERS[Provider Adapters]
-    ADAPTERS --> RACE
-    ADAPTERS --> ORDER
-    ADAPTERS --> COMMENT
-```
-
-### Request lifecycle
-
-1. React page calls an API function in `client/src/services`.
-2. Axios sends the request to Express.
-3. Express route applies validation/auth middleware and invokes a controller.
-4. Controller calls a service.
-5. Service applies business rules and accesses MongoDB through Mongoose models.
-6. Controller returns a consistent JSON response.
-7. For race changes, the race service emits Socket.IO events to the relevant race room.
-8. The frontend hook receives the event and updates the map, ETA, feed, and leaderboard.
-
 ## 5. Backend Responsibilities
 
 ### Order Service
