@@ -16,7 +16,7 @@ async function startServer() {
     await seedDatabase({ force: false });
 
     // 3. Start listening
-    server.listen(env.PORT, () => {
+    server.listen(env.PORT, '0.0.0.0', () => {
       console.log(`=======================================================`);
       console.log(`🏎️  GADBAD GRUB BACKEND SERVER RUNNING`);
       console.log(`📍  Port: ${env.PORT}`);

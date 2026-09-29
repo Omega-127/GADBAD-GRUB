@@ -1,73 +1,87 @@
 import { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
-import { SOCKET_URL } from '../utils/constants';
+import { API_BASE_URL } from '../utils/constants';
 
 /**
- * Hook to manage Socket.IO connection for real-time race telemetry
+ * Hook to manage real-time race telemetry via Server-Sent Events (SSE)
+ * Natively supported on Render (backend) and Vercel (frontend)
  */
 export function useRaceSocket(raceId, callbacks = {}) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
-  const socketRef = useRef(null);
+  const eventSourceRef = useRef(null);
 
   const { onState, onEvent, onLeaderboard, onFinished } = callbacks;
 
   useEffect(() => {
     if (!raceId) return;
 
-    let socket;
-    try {
-      socket = io(SOCKET_URL, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 3,
-        reconnectionDelay: 2000,
-        timeout: 5000,
-      });
-      socketRef.current = socket;
+    let eventSource = null;
+    let isSubscribed = true;
 
-      socket.on('connect', () => {
-        setConnected(true);
-        setError(null);
-        socket.emit('race:join', { raceId });
-      });
+    // Connect to backend Server-Sent Events (SSE) stream
+    if (typeof window !== 'undefined' && window.EventSource) {
+      try {
+        const streamUrl = `${API_BASE_URL}/races/${raceId}/stream`;
+        eventSource = new EventSource(streamUrl);
+        eventSourceRef.current = eventSource;
 
-      socket.on('connect_error', (err) => {
-        setConnected(false);
-        setError(err.message || 'Real-time telemetry link offline');
-      });
+        eventSource.onopen = () => {
+          if (!isSubscribed) return;
+          setConnected(true);
+          setError(null);
+        };
 
-      socket.on('disconnect', () => {
-        setConnected(false);
-      });
+        eventSource.onmessage = (e) => {
+          if (!isSubscribed || !e.data) return;
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'INITIAL_STATE' || data.type === 'RACE_UPDATE') {
+              if (onState) {
+                onState({
+                  racers: data.racers,
+                  progress: data.racer?.progress ?? (data.racers?.[0]?.progress || 0),
+                  status: data.status,
+                  winner: data.status === 'finished' ? data.racers?.[0] : null,
+                });
+              }
+              if (onLeaderboard && data.racers) {
+                onLeaderboard(data.racers);
+              }
+              if (onEvent && data.event) {
+                onEvent(data.event);
+              }
+              if (onFinished && (data.status === 'finished' || data.type === 'RACE_FINISHED')) {
+                onFinished({ winner: data.racers?.[0] });
+              }
+            }
+          } catch {
+            // Ignore comments/heartbeats
+          }
+        };
 
-      if (onState) {
-        socket.on('race:state', onState);
+        eventSource.onerror = () => {
+          if (!isSubscribed) return;
+          setConnected(false);
+          setError('Live telemetry link offline, using local simulator');
+          if (eventSource) {
+            eventSource.close();
+          }
+        };
+      } catch (err) {
+        setError(err.message);
       }
-
-      if (onEvent) {
-        socket.on('race:event', onEvent);
-      }
-
-      if (onLeaderboard) {
-        socket.on('race:leaderboard', onLeaderboard);
-      }
-
-      if (onFinished) {
-        socket.on('race:finished', onFinished);
-      }
-    } catch (err) {
-      setError(err.message);
     }
 
     return () => {
-      if (socket) {
-        socket.disconnect();
+      isSubscribed = false;
+      if (eventSource) {
+        eventSource.close();
       }
     };
-  }, [raceId]);
+  }, [raceId, onState, onEvent, onLeaderboard, onFinished]);
 
   return {
-    socket: socketRef.current,
+    socket: null,
     connected,
     error,
   };
