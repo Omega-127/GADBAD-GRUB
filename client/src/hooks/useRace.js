@@ -4,11 +4,13 @@ import raceApi from '../services/raceApi';
 import predictionApi from '../services/predictionApi';
 import useRaceSocket from './useRaceSocket';
 import useAuth from './useAuth';
-import { DEMO_RACERS, IS_DEMO_MODE } from '../utils/constants';
+import { DEMO_RACERS } from '../utils/constants';
+import { normalizeRace } from '../utils/normalizeRace';
 
 export function useRace(raceId) {
   const { addPoints, unlockBadge } = useAuth();
-  
+
+  const [resolvedRaceId, setResolvedRaceId] = useState(raceId || null);
   const [race, setRace] = useState(null);
   const [events, setEvents] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -21,96 +23,15 @@ export function useRace(raceId) {
 
   // Fallback simulator interval ref
   const simTimerRef = useRef(null);
-
-  // Initial Data Fetch
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadInitial() {
-      if (!raceId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        const [raceData, eventData, predData] = await Promise.all([
-          raceApi.getRace(raceId),
-          raceApi.getRaceEvents(raceId),
-          predictionApi.getPrediction(raceId),
-        ]);
-
-        if (!mounted) return;
-
-        setRace(raceData);
-        setEvents(eventData || []);
-        setUserPrediction(predData);
-
-        // Initialize racers telemetry
-        const racers = raceData.racers || DEMO_RACERS.map((r, idx) => ({
-          ...r,
-          progress: Math.max(5, 55 - idx * 8),
-          speed: r.baseSpeed,
-          rank: idx + 1,
-          distanceLeftKm: (3.0 - idx * 0.4).toFixed(1)
-        }));
-
-        setRace(prev => ({ ...prev, racers }));
-        setLeaderboard([...racers].sort((a, b) => b.progress - a.progress));
-
-        if (raceData.status === 'finished' || raceData.progress >= 100) {
-          setIsFinished(true);
-          const topRacer = racers[0];
-          setWinner(topRacer);
-        }
-      } catch (err) {
-        if (mounted) setError(err.message);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    loadInitial();
-    return () => {
-      mounted = false;
-    };
-  }, [raceId]);
-
-  // Handle Socket Events
-  const handleStateUpdate = useCallback((state) => {
-    setRace((prev) => ({ ...prev, ...state }));
-    if (state.racers) {
-      setLeaderboard([...state.racers].sort((a, b) => b.progress - a.progress));
-    }
-    if (state.status === 'finished' || state.progress >= 100) {
-      handleRaceFinish(state.winner || (state.racers && state.racers[0]));
-    }
-  }, []);
-
-  const handleEventUpdate = useCallback((event) => {
-    setEvents((prev) => [event, ...prev]);
-  }, []);
-
-  const handleLeaderboardUpdate = useCallback((ranks) => {
-    setLeaderboard(ranks);
-  }, []);
-
-  const handleFinishedUpdate = useCallback((result) => {
-    handleRaceFinish(result.winner);
-  }, []);
-
-  const { connected } = useRaceSocket(raceId, {
-    onState: handleStateUpdate,
-    onEvent: handleEventUpdate,
-    onLeaderboard: handleLeaderboardUpdate,
-    onFinished: handleFinishedUpdate,
-  });
+  const finishingRef = useRef(false);
 
   // Finish handling
   const handleRaceFinish = useCallback((winningRacer) => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
     setIsFinished(true);
     setWinner(winningRacer);
 
-    // Fire fireworks / confetti celebration
     try {
       confetti({
         particleCount: 120,
@@ -122,7 +43,6 @@ export function useRace(raceId) {
       // Ignore if confetti context not ready
     }
 
-    // Award XP and check predictions
     addPoints(150, 'Race Completed Delivery');
     unlockBadge('FIRST_ORDER');
 
@@ -132,14 +52,130 @@ export function useRace(raceId) {
     }
   }, [userPrediction, addPoints, unlockBadge]);
 
-  // Client Simulation fallback when socket is disconnected or demo mode
+  // Resolve race id (create live race when /race opened with no/invalid id)
   useEffect(() => {
-    if (!raceId || isFinished || connected) {
+    let mounted = true;
+
+    async function resolveAndLoad() {
+      setLoading(true);
+      setError(null);
+      finishingRef.current = false;
+
+      try {
+        let id = raceId;
+        let raceData = null;
+
+        if (!id || id === 'race_live_demo_01' || id === 'race_01' || id === 'race_02') {
+          // Placeholder / hub entry — spin up or attach to a real live race
+          raceData = await raceApi.ensureLiveRace();
+          id = raceData._id;
+        } else {
+          try {
+            raceData = await raceApi.getRace(id);
+          } catch {
+            raceData = await raceApi.ensureLiveRace();
+            id = raceData._id;
+          }
+        }
+
+        if (!mounted) return;
+
+        // If backend race is waiting, kick the simulator
+        if (raceData.status === 'waiting') {
+          try {
+            await raceApi.startRace(id);
+            raceData = normalizeRace({ ...raceData, status: 'racing' });
+          } catch {
+            // local sim will take over if SSE/start fails
+          }
+        }
+
+        setResolvedRaceId(id);
+
+        const [eventData, predData] = await Promise.all([
+          raceApi.getRaceEvents(id).catch(() => []),
+          predictionApi.getPrediction(id).catch(() => null),
+        ]);
+
+        if (!mounted) return;
+
+        const racers =
+          raceData.racers?.length > 0
+            ? raceData.racers
+            : DEMO_RACERS.map((r, idx) => ({
+                ...r,
+                progress: Math.max(5, 55 - idx * 8),
+                speed: r.baseSpeed,
+                rank: idx + 1,
+                distanceLeftKm: (3.0 - idx * 0.4).toFixed(1),
+              }));
+
+        const hydrated = normalizeRace({ ...raceData, racers });
+        setRace(hydrated);
+        setEvents(eventData || []);
+        setUserPrediction(predData);
+        setLeaderboard([...hydrated.racers].sort((a, b) => b.progress - a.progress));
+
+        if (hydrated.status === 'finished' || hydrated.progress >= 100) {
+          setIsFinished(true);
+          setWinner(hydrated.racers[0]);
+        } else {
+          setIsFinished(false);
+          setWinner(null);
+        }
+      } catch (err) {
+        if (mounted) setError(err.message || 'Failed to load live race');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    resolveAndLoad();
+    return () => {
+      mounted = false;
+    };
+  }, [raceId]);
+
+  // Handle Socket Events
+  const handleStateUpdate = useCallback((state) => {
+    setRace((prev) => {
+      const merged = normalizeRace({ ...prev, ...state });
+      return merged;
+    });
+    if (state.racers) {
+      setLeaderboard([...state.racers].sort((a, b) => b.progress - a.progress));
+    }
+    if (state.status === 'finished' || state.progress >= 100) {
+      handleRaceFinish(state.winner || (state.racers && state.racers[0]));
+    }
+  }, [handleRaceFinish]);
+
+  const handleEventUpdate = useCallback((event) => {
+    setEvents((prev) => [event, ...prev].slice(0, 40));
+  }, []);
+
+  const handleLeaderboardUpdate = useCallback((ranks) => {
+    setLeaderboard(ranks);
+  }, []);
+
+  const handleFinishedUpdate = useCallback((result) => {
+    handleRaceFinish(result.winner);
+  }, [handleRaceFinish]);
+
+  const { connected } = useRaceSocket(resolvedRaceId, {
+    onState: handleStateUpdate,
+    onEvent: handleEventUpdate,
+    onLeaderboard: handleLeaderboardUpdate,
+    onFinished: handleFinishedUpdate,
+  });
+
+  // Client Simulation fallback when socket is disconnected
+  useEffect(() => {
+    if (!resolvedRaceId || isFinished || connected) {
       if (simTimerRef.current) clearInterval(simTimerRef.current);
       return;
     }
 
-    // Run tick every 1800ms
     simTimerRef.current = setInterval(() => {
       setRace((prev) => {
         if (!prev || prev.status === 'finished' || prev.progress >= 100) {
@@ -147,12 +183,10 @@ export function useRace(raceId) {
           return prev;
         }
 
-        // Randomly adjust progress for each racer
         const updatedRacers = (prev.racers || DEMO_RACERS).map((racer) => {
-          // slight randomness in tick speed
-          const delta = (Math.random() * 2.8 + 1.2);
+          const delta = Math.random() * 2.8 + 1.2;
           const newProgress = Math.min(100, Math.round((racer.progress + delta) * 10) / 10);
-          const currentSpeed = Math.round(racer.baseSpeed + (Math.random() * 8 - 4));
+          const currentSpeed = Math.round((racer.baseSpeed || 55) + (Math.random() * 8 - 4));
           const distanceLeft = Math.max(0, ((100 - newProgress) * 0.035).toFixed(2));
           return {
             ...racer,
@@ -162,7 +196,6 @@ export function useRace(raceId) {
           };
         });
 
-        // Re-sort racers by progress (descending)
         updatedRacers.sort((a, b) => b.progress - a.progress);
         const rankedRacers = updatedRacers.map((r, idx) => ({ ...r, rank: idx + 1 }));
 
@@ -170,7 +203,6 @@ export function useRace(raceId) {
         const newOverallProgress = primaryRacer.progress;
         const newEtaSeconds = Math.max(0, Math.round((100 - newOverallProgress) * 4.2));
 
-        // Check if finished
         if (rankedRacers.some((r) => r.progress >= 100)) {
           clearInterval(simTimerRef.current);
           const champ = rankedRacers[0];
@@ -185,14 +217,13 @@ export function useRace(raceId) {
           };
         }
 
-        // Generate occasional playful race event
         if (Math.random() > 0.6) {
           const sampleCommentary = [
             `⚡ ${rankedRacers[0].name} leans into the hairpin turn with max tire traction!`,
             `💨 Slipstream alert! ${rankedRacers[1]?.name || 'Challenger'} is drafting right behind the leader!`,
             `🚦 Green light sequence! Virtual traffic cleared on Grand Boulevard.`,
             `🔥 Engine RPM spiking! ${rankedRacers[0].name} hits 68 km/h on the straightaway!`,
-            `🍔 Food container thermal sensors reading 65°C - piping hot and secure!`
+            `🍔 Food container thermal sensors reading 65°C - piping hot and secure!`,
           ];
           const randomMsg = sampleCommentary[Math.floor(Math.random() * sampleCommentary.length)];
           setEvents((ePrev) => [
@@ -214,6 +245,7 @@ export function useRace(raceId) {
           ...prev,
           progress: newOverallProgress,
           etaSeconds: newEtaSeconds,
+          status: 'racing',
           racers: rankedRacers,
         };
       });
@@ -222,13 +254,13 @@ export function useRace(raceId) {
     return () => {
       if (simTimerRef.current) clearInterval(simTimerRef.current);
     };
-  }, [raceId, isFinished, connected, handleRaceFinish]);
+  }, [resolvedRaceId, isFinished, connected, handleRaceFinish]);
 
   // Submit Winner Prediction
   const submitPrediction = async (racerId) => {
     try {
-      const pred = await predictionApi.submitPrediction(raceId, {
-        userId: 'usr_gadbad_demo_01',
+      const pred = await predictionApi.submitPrediction(resolvedRaceId, {
+        userId: 'user_demo_1',
         predictedRacerId: racerId,
       });
       setUserPrediction(pred);
@@ -244,12 +276,11 @@ export function useRace(raceId) {
     if (nitroActive || isFinished) return;
     setNitroActive(true);
 
-    // Boost primary racer progress slightly
     setRace((prev) => {
       if (!prev) return prev;
       const boosted = (prev.racers || []).map((r) => {
         if (r.id === prev.racerId || r.rank === 1) {
-          return { ...r, progress: Math.min(99, r.progress + 4), speed: r.speed + 15 };
+          return { ...r, progress: Math.min(99, r.progress + 4), speed: (r.speed || 55) + 15 };
         }
         return r;
       });
@@ -259,7 +290,7 @@ export function useRace(raceId) {
     setEvents((prev) => [
       {
         _id: `nitro_${Date.now()}`,
-        raceId,
+        raceId: resolvedRaceId,
         type: 'NITRO_BURST',
         message: '🚀 NITRO SUPERCHARGER ENGAGED! Spectator cheer triggered +15 km/h surge!',
         source: 'simulator',
@@ -286,6 +317,7 @@ export function useRace(raceId) {
     isFinished,
     winner,
     connected,
+    raceId: resolvedRaceId,
   };
 }
 

@@ -4,8 +4,8 @@ import { Flag, Wifi, WifiOff, MapPin, Gauge } from 'lucide-react';
 export function RaceStatus({ race, connected = false }) {
   if (!race) return null;
 
-  const isRacing = race.status === 'racing';
-  const isFinished = race.status === 'finished' || race.progress >= 100;
+  const isRacing = race.status === 'racing' || race.status === 'RUNNING' || race.status === 'waiting';
+  const isFinished = race.status === 'finished' || race.status === 'FINISHED' || race.progress >= 100;
 
   return (
     <div

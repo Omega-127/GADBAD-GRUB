@@ -18,8 +18,8 @@ export function RacePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const raceId = searchParams.get('id') || 'race_live_demo_01';
-  const orderId = searchParams.get('orderId') || 'ord_demo_speed_99';
+  const raceId = searchParams.get('id') || null;
+  const orderId = searchParams.get('orderId') || null;
 
   const {
     race,

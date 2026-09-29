@@ -1,10 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flag, Play, Sparkles, Zap, Trophy, ShieldCheck } from 'lucide-react';
+import { Flag, Play } from 'lucide-react';
 import Button from '../common/Button';
+import raceApi from '../../services/raceApi';
 
 export function RaceWatchHub({ activeRace }) {
   const navigate = useNavigate();
+  const [launching, setLaunching] = useState(false);
+
+  const enterRaceHub = async () => {
+    try {
+      setLaunching(true);
+      const race = activeRace?._id
+        ? activeRace
+        : await raceApi.ensureLiveRace();
+      navigate(`/race?id=${race._id}${race.orderId ? `&orderId=${race.orderId}` : ''}`);
+    } catch (err) {
+      console.error('Failed to launch live race', err);
+      // Still open the race page — useRace will recover / fall back
+      navigate('/race');
+    } finally {
+      setLaunching(false);
+    }
+  };
 
   return (
     <div
@@ -123,7 +141,8 @@ export function RaceWatchHub({ activeRace }) {
           <Button
             variant="nitro"
             size="lg"
-            onClick={() => navigate('/race')}
+            onClick={enterRaceHub}
+            loading={launching}
             icon={Play}
           >
             ENTER RACE WATCH HUB

@@ -289,9 +289,12 @@ class RaceSimulatorService extends EventEmitter {
     });
 
     // Build the exact SSE payload required by Section 6
+    const race = await RaceModel.findById(raceId);
     const ssePayload = {
       type: 'RACE_UPDATE',
       raceId,
+      status: race?.status || 'RUNNING',
+      racers: race?.racers || [],
       racer: {
         id: racerId || metadata?.leaderId || 'racer_1',
         name: metadata?.leaderName || 'Delivery Rider',
