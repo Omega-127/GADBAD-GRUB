@@ -1,0 +1,56 @@
+:root {
+  /* Brand Primary Colors */
+  --bg-dark: #0A0E17;
+  --bg-card: rgba(18, 24, 38, 0.85);
+  --bg-card-hover: rgba(26, 35, 56, 0.95);
+  --bg-card-border: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(15, 23, 42, 0.65);
+  
+  /* Racing Neon Accents */
+  --neon-cyan: #00F0FF;
+  --neon-cyan-glow: 0 0 15px rgba(0, 240, 255, 0.5);
+  --neon-gold: #FFB800;
+  --neon-gold-glow: 0 0 15px rgba(255, 184, 0, 0.5);
+  --neon-crimson: #FF3366;
+  --neon-crimson-glow: 0 0 15px rgba(255, 51, 102, 0.5);
+  --neon-green: #00E676;
+  --neon-green-glow: 0 0 15px rgba(0, 230, 118, 0.5);
+  --neon-purple: #9D4EDD;
+  --neon-purple-glow: 0 0 15px rgba(157, 78, 221, 0.5);
+
+  /* Speed Gradients */
+  --grad-primary: linear-gradient(135deg, #00F0FF 0%, #7928CA 100%);
+  --grad-nitro: linear-gradient(135deg, #FF3366 0%, #FF9900 100%);
+  --grad-gold: linear-gradient(135deg, #FFD000 0%, #FF8800 100%);
+  --grad-green: linear-gradient(135deg, #00E676 0%, #00B0FF 100%);
+  --grad-dark: linear-gradient(180deg, #111827 0%, #0A0E17 100%);
+  --grad-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+
+  /* Text Colors */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-dark: #0A0E17;
+
+  /* Typography */
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-racing: 'Rajdhani', sans-serif;
+  --font-telemetry: 'Orbitron', monospace;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 20px rgba(0, 240, 255, 0.25);
+
+  /* Borders & Radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  --header-height: 72px;
+  --sidebar-width: 250px;
+  --bottom-nav-height: 64px;
+}
