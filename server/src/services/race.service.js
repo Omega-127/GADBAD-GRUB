@@ -78,6 +78,8 @@ class RaceService {
 
     if (options.autoStart) {
       await raceSimulator.startRace(raceId, options);
+      // Return fresh race document after simulator marks it RUNNING
+      return this.getRaceById(raceId);
     }
 
     return race;

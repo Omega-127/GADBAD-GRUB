@@ -16,11 +16,11 @@ const rawSocketUrl = (
 export const SOCKET_URL = rawSocketUrl;
 export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
 
-// Default Demo User
+// Default Demo User — must match a seeded backend user (server/src/seed/users.seed.js)
 export const DEFAULT_USER = {
-  _id: 'usr_gadbad_demo_01',
-  displayName: 'SpeedyGourmet',
-  email: 'racer@gadbadgrub.io',
+  _id: 'user_demo_1',
+  displayName: 'SpeedySam',
+  email: 'sam@gadbad.demo',
   avatar: '🏎️',
   points: 1250,
   xp: 3420,

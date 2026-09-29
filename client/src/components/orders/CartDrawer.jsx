@@ -8,6 +8,7 @@ import Button from '../common/Button';
 import orderApi from '../../services/orderApi';
 import raceApi from '../../services/raceApi';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { normalizeRace } from '../../utils/normalizeRace';
 
 export function CartDrawer() {
   const {
@@ -37,10 +38,10 @@ export function CartDrawer() {
       setOrdering(true);
       setError(null);
 
-      // 1. Create order
+      // 1. Create order (backend also auto-creates + starts the race)
       const order = await orderApi.createOrder({
         userId: user._id,
-        restaurantId: restaurant?._id || 'rest_01',
+        restaurantId: restaurant?._id || 'rest_pizza_01',
         items: items.map((i) => ({
           menuItemId: i._id,
           name: i.name,
@@ -49,17 +50,21 @@ export function CartDrawer() {
         })),
       });
 
-      // 2. Automatically spawn race for this order
-      const race = await raceApi.createRace({
-        orderId: order._id,
-        racerId: 'racer_1',
-        racerName: 'Pizza Panther',
-      });
+      // 2. Prefer race returned with the order; otherwise create one
+      let race = order.race ? normalizeRace(order.race) : null;
+      if (!race) {
+        race = await raceApi.createRace({
+          orderId: order._id,
+          racerId: 'racer_1',
+          racerName: 'Pizza Panther',
+          autoStart: true,
+        });
+      }
 
       // 3. Clear cart and navigate to live race view!
       clearCart();
       closeCart();
-      navigate(`/race?id=${race._id}&orderId=${order._id}`);
+      navigate(`/race?id=${race._id || race.raceId}&orderId=${order._id}`);
     } catch (err) {
       setError(err.message || 'Checkout failed');
     } finally {

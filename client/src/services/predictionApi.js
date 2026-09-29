@@ -14,7 +14,7 @@ export const predictionApi = {
         console.info(`[Demo Mode] Stored prediction for ${predictedRacerId} on race ${raceId}`);
         const prediction = {
           _id: `pred_${Date.now()}`,
-          userId: userId || 'usr_gadbad_demo_01',
+          userId: userId || 'user_demo_1',
           raceId,
           predictedRacerId,
           submittedAt: new Date().toISOString(),

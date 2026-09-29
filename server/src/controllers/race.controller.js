@@ -4,7 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
 const createRace = asyncHandler(async (req, res) => {
-  const { orderId, autoStart } = req.body;
+  const { orderId, autoStart = true } = req.body;
   if (!orderId) {
     throw ApiError.badRequest('orderId is required to create a race', 'VALIDATION_ERROR');
   }

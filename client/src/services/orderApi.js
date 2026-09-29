@@ -41,15 +41,30 @@ export const orderApi = {
    */
   async createOrder({ userId, restaurantId, items }) {
     try {
-      const res = await apiClient.post('/orders', { userId, restaurantId, items });
-      if (res.success && res.data) return res.data;
+      const res = await apiClient.post('/orders', {
+        userId,
+        restaurantId,
+        items: items.map((i) => ({
+          menuItemId: i.menuItemId || i._id,
+          quantity: i.quantity,
+        })),
+        autoStartRace: true,
+      });
+      if (res.success && res.data) {
+        // Backend returns { order, race } — unwrap so callers get the order
+        const order = res.data.order || res.data;
+        if (res.data.race) {
+          order.race = res.data.race;
+        }
+        return order;
+      }
     } catch (err) {
       if (IS_DEMO_MODE) {
         console.info('[Demo Mode] Generating local simulated order');
         const calculatedTotal = items.reduce((sum, item) => sum + (item.price || 12.99) * item.quantity, 0) + 3.49;
         const newOrder = {
           _id: `ord_${Date.now()}`,
-          userId: userId || 'usr_gadbad_demo_01',
+          userId: userId || 'user_demo_1',
           restaurantId,
           items: items.map(i => ({
             menuItemId: i._id || i.menuItemId,
@@ -86,7 +101,7 @@ export const orderApi = {
         if (found) return found;
         return {
           _id: orderId,
-          userId: 'usr_gadbad_demo_01',
+          userId: 'user_demo_1',
           restaurantId: 'rest_01',
           items: [{ menuItemId: 'm_01', name: 'Nitro Pepperoni Inferno', quantity: 1, unitPrice: 15.99 }],
           total: 19.48,
