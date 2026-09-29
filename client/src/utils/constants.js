@@ -1,5 +1,19 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// Sanitize environment URLs so users can provide e.g. https://service.onrender.com or https://service.onrender.com/api
+const rawApiUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api')
+  .trim()
+  .replace(/\/+$/, '');
+
+export const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+
+const rawSocketUrl = (
+  import.meta.env.VITE_SOCKET_URL ||
+  rawApiUrl.replace(/\/api\/?$/, '') ||
+  'http://localhost:5000'
+)
+  .trim()
+  .replace(/\/+$/, '');
+
+export const SOCKET_URL = rawSocketUrl;
 export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
 
 // Default Demo User

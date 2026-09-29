@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: gadbad-grub-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USE_IN_MEMORY_DB
+        value: "true"
+      - key: DEMO_MODE
+        value: "true"
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: RACE_TICK_INTERVAL_MS
+        value: "1500"

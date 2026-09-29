@@ -7,7 +7,7 @@ export const rewardsApi = {
    */
   async getUserProfile(userId) {
     try {
-      const res = await apiClient.get(`/users/${userId}/profile`);
+      const res = await apiClient.get(`/rewards/user/${userId}/profile`).catch(() => apiClient.get(`/users/${userId}/profile`));
       if (res.success && res.data) return res.data;
     } catch (err) {
       if (IS_DEMO_MODE) {
@@ -22,7 +22,7 @@ export const rewardsApi = {
    */
   async getUserRewards(userId) {
     try {
-      const res = await apiClient.get(`/users/${userId}/rewards`);
+      const res = await apiClient.get(`/rewards/user/${userId}`).catch(() => apiClient.get(`/users/${userId}/rewards`));
       if (res.success && res.data) return res.data;
     } catch (err) {
       if (IS_DEMO_MODE) {
