@@ -1,0 +1,223 @@
+@import './theme.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Cyber Racing Backdrop Grid & Radial Ambient Lights */
+body {
+  background-image: 
+    radial-gradient(circle at 15% 20%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 85% 75%, rgba(121, 40, 202, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(255, 51, 102, 0.04) 0%, transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 0 0, -1px -1px, -1px -1px;
+}
+
+/* Custom Cyber Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 14, 23, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-cyan);
+}
+
+/* Typography styles */
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-racing);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.font-telemetry {
+  font-family: var(--font-telemetry);
+  letter-spacing: 1px;
+}
+
+/* Racing Glass Panels */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 240, 255, 0.3);
+  box-shadow: var(--shadow-lg), 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.glass-card-interactive {
+  cursor: pointer;
+}
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 10px 25px rgba(0, 240, 255, 0.2);
+}
+
+.glass-panel-gold {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 184, 0, 0.25);
+  box-shadow: 0 0 15px rgba(255, 184, 0, 0.1);
+}
+
+.glass-panel-nitro {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.15);
+}
+
+/* Speed Tag / Badges */
+.speed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-racing);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.speed-badge-cyan {
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--neon-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.speed-badge-gold {
+  background: rgba(255, 184, 0, 0.12);
+  color: var(--neon-gold);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+}
+
+.speed-badge-green {
+  background: rgba(0, 230, 118, 0.12);
+  color: var(--neon-green);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+}
+
+.speed-badge-crimson {
+  background: rgba(255, 51, 102, 0.12);
+  color: var(--neon-crimson);
+  border: 1px solid rgba(255, 51, 102, 0.4);
+}
+
+/* Pulsing Status Dot */
+.live-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan);
+  animation: pulseNeon 1.5s infinite;
+}
+
+.live-pulse-dot.danger {
+  background: var(--neon-crimson);
+  box-shadow: 0 0 8px var(--neon-crimson);
+  animation: pulseCrimson 1.5s infinite;
+}
+
+@keyframes pulseNeon {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulseCrimson {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}
+
+@keyframes nitroFlame {
+  0%, 100% {
+    transform: translateX(0) scaleY(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateX(-3px) scaleY(1.15);
+    opacity: 1;
+  }
+}
+
+/* App Layout Grid Container */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.page-wrapper {
+  flex: 1;
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .page-wrapper {
+    padding: 16px 12px;
+    padding-bottom: 90px; /* Space for bottom nav */
+  }
+}
+
+/* Speed Track Finish Line Pattern */
+.checker-flag-bar {
+  background-image: 
+    linear-gradient(45deg, #000 25%, transparent 25%), 
+    linear-gradient(-45deg, #000 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #000 75%), 
+    linear-gradient(-45deg, transparent 75%, #000 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+  background-color: #fff;
+}
